@@ -1,0 +1,9 @@
+package in.sih.dementia.patient;
+
+import java.util.List;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface MedicationEventRepository extends JpaRepository<MedicationEvent, UUID> {
+    List<MedicationEvent> findByPatientIdOrderByOccurredAtDesc(UUID patientId);
+}
