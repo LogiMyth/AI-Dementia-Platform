@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: dementia-platform-api
+  datasource:
+    url: "${DATABASE_URL:jdbc:postgresql://localhost:5432/dementia_platform}"
+    username: "${DATABASE_USERNAME:dementia_app}"
+    password: "${DATABASE_PASSWORD:change-me}"
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+server:
+  port: "${PORT:8080}"
+  servlet:
+    context-path: /api
+app:
+  jwt:
+    secret: "${JWT_SECRET:replace-with-a-long-random-secret-at-least-32-characters}"
+    expiration-minutes: "${JWT_EXPIRATION_MINUTES:30}"
+  demo-mode: "${DEMO_MODE:true}"

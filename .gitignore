@@ -1,0 +1,10 @@
+node_modules/
+dist/
+target/
+.tools/
+.m2/
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/

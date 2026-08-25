@@ -1,0 +1,10 @@
+{
+  "name": "sih-2026-ai-dementia-platform",
+  "private": true,
+  "workspaces": ["apps/web"],
+  "scripts": {
+    "web:dev": "npm --workspace=@dementia/web run dev",
+    "web:build": "npm --workspace=@dementia/web run build",
+    "web:test": "npm --workspace=@dementia/web run test"
+  }
+}
