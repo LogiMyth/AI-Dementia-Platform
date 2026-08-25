@@ -10,6 +10,7 @@ import { MemorySupport } from "./components/MemorySupport";
 import { CompanionView } from "./components/CompanionView";
 import { PatientSettingsView } from "./components/PatientSettingsView";
 import { EmergencyModal } from "./components/EmergencyModal";
+import { CaregiverShell } from "./components/CaregiverShell";
 import "./styles.css";
 
 function PatientShell({ session, onSignOut }: { session: LoginResponse; onSignOut: () => void }) {
@@ -295,6 +296,16 @@ function App() {
 
   if (session.user.role === "PATIENT") {
     return <PatientShell session={session} onSignOut={() => setSession(null)} />;
+  }
+
+  if (session.user.role === "CAREGIVER") {
+    return (
+      <CaregiverShell
+        user={session.user}
+        token={session.accessToken}
+        onLogout={() => setSession(null)}
+      />
+    );
   }
 
   return (

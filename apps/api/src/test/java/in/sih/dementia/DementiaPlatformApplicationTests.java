@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.HashMap;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,7 +38,7 @@ class DementiaPlatformApplicationTests {
 
     @Test
     void contextLoadsAndDatabaseSeeded() {
-        // Verifies Spring context, Flyway migration V1, V2 & V3, and seeded demo accounts
+        // Verifies Spring context, Flyway migrations V1–V4, and seeded demo accounts
         assertThat(userRepository.count()).isGreaterThanOrEqualTo(4);
         assertThat(userRepository.findByEmailIgnoreCase("caregiver.asha@example.test")).isPresent();
         assertThat(userRepository.findByEmailIgnoreCase("patient.b@example.test")).isPresent();
@@ -152,5 +153,97 @@ class DementiaPlatformApplicationTests {
                 .content(objectMapper.writeValueAsString(companionBody)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.reply", containsString("Asha")));
+    }
+
+    @Test
+    void testCaregiverCoreFlow() throws Exception {
+        // 1. Caregiver login
+        var loginBody = new AuthController.LoginRequest("caregiver.asha@example.test", "DemoPass123!");
+        var loginRes = mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginBody)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.user.role", is("CAREGIVER")))
+                .andReturn();
+
+        var loginJson = objectMapper.readTree(loginRes.getResponse().getContentAsString());
+        var token = loginJson.get("data").get("accessToken").asText();
+
+        // 2. Caregiver dashboard
+        var dashboardRes = mockMvc.perform(get("/caregiver/dashboard")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data", hasSize(greaterThanOrEqualTo(1))))
+                .andReturn();
+
+        var dashboardJson = objectMapper.readTree(dashboardRes.getResponse().getContentAsString());
+        var patientId = dashboardJson.get("data").get(0).get("patientId").asText();
+
+        // 3. Patient summary
+        mockMvc.perform(get("/caregiver/patients/" + patientId + "/summary")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.preferredName", is("Meera")));
+
+        // 4. Routines and medications
+        mockMvc.perform(get("/caregiver/patients/" + patientId + "/routines")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(greaterThanOrEqualTo(1))));
+
+        mockMvc.perform(get("/caregiver/patients/" + patientId + "/medications")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(greaterThanOrEqualTo(1))));
+
+        // 5. Activity timeline
+        mockMvc.perform(get("/caregiver/patients/" + patientId + "/timeline")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
+
+        // 6. Alerts (seeded alert)
+        var alertsRes = mockMvc.perform(get("/caregiver/patients/" + patientId + "/alerts")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(greaterThanOrEqualTo(1))))
+                .andReturn();
+
+        var alertsJson = objectMapper.readTree(alertsRes.getResponse().getContentAsString());
+        var alertId = alertsJson.get("data").get(0).get("id").asText();
+
+        // 7. Acknowledge alert
+        var ackBody = new HashMap<String, String>();
+        ackBody.put("status", "ACKNOWLEDGED");
+        ackBody.put("note", "Reminded patient about evening medication.");
+        mockMvc.perform(post("/caregiver/alerts/" + alertId + "/acknowledge")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(ackBody)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("ACKNOWLEDGED")));
+
+        // 8. AI insights
+        mockMvc.perform(get("/caregiver/patients/" + patientId + "/insights")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(greaterThanOrEqualTo(1))));
+
+        // 9. Add note
+        var noteBody = new HashMap<String, String>();
+        noteBody.put("noteText", "Patient seemed calm and engaged today.");
+        mockMvc.perform(post("/caregiver/patients/" + patientId + "/notes")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(noteBody)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.noteText", is("Patient seemed calm and engaged today.")));
+
+        // 10. List notes
+        mockMvc.perform(get("/caregiver/patients/" + patientId + "/notes")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(greaterThanOrEqualTo(1))));
     }
 }

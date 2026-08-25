@@ -1,15 +1,24 @@
 import type {
+  AcknowledgeAlertRequest,
+  AIInsight,
+  Alert,
   ApiResponse,
+  CaregiverNote,
+  CaregiverPatientSummary,
   CheckIn,
   CompanionRequest,
   CompanionResponse,
+  CreateMedicationRequest,
+  CreateNoteRequest,
+  CreateRoutineRequest,
   LoginRequest,
   LoginResponse,
   MedicationSchedule,
   MemoryItem,
   PatientSettings,
   PatientTodaySummary,
-  RoutineTask
+  RoutineTask,
+  TimelineEvent
 } from "@dementia/contracts";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/api";
@@ -22,29 +31,29 @@ function authHeader(token?: string): Record<string, string> {
   return headers;
 }
 
+async function handleResponse<T>(res: Response): Promise<T> {
+  const payload: ApiResponse<T> = await res.json();
+  if (!res.ok || !payload.success) {
+    throw new Error(payload.message || `Request failed: ${res.status}`);
+  }
+  return payload.data;
+}
+
 export const api = {
+  /* ── Auth ── */
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(credentials)
     });
-    const payload: ApiResponse<LoginResponse> = await res.json();
-    if (!res.ok || !payload.success) {
-      throw new Error(payload.message || "Sign in failed.");
-    }
-    return payload.data;
+    return handleResponse<LoginResponse>(res);
   },
 
+  /* ── Patient (P1) ── */
   async getTodaySummary(patientId: string, token: string): Promise<PatientTodaySummary> {
-    const res = await fetch(`${API_BASE}/patients/${patientId}/today`, {
-      headers: authHeader(token)
-    });
-    const payload: ApiResponse<PatientTodaySummary> = await res.json();
-    if (!res.ok || !payload.success) {
-      throw new Error(payload.message || "Could not load today's summary.");
-    }
-    return payload.data;
+    const res = await fetch(`${API_BASE}/patients/${patientId}/today`, { headers: authHeader(token) });
+    return handleResponse<PatientTodaySummary>(res);
   },
 
   async updateRoutineStatus(patientId: string, taskId: string, status: string, token: string): Promise<RoutineTask> {
@@ -53,11 +62,7 @@ export const api = {
       headers: authHeader(token),
       body: JSON.stringify({ status })
     });
-    const payload: ApiResponse<RoutineTask> = await res.json();
-    if (!res.ok || !payload.success) {
-      throw new Error(payload.message || "Could not update routine.");
-    }
-    return payload.data;
+    return handleResponse<RoutineTask>(res);
   },
 
   async recordMedicationAction(patientId: string, scheduleId: string, action: string, note: string | undefined, token: string): Promise<MedicationSchedule> {
@@ -66,11 +71,7 @@ export const api = {
       headers: authHeader(token),
       body: JSON.stringify({ action, note: note || "" })
     });
-    const payload: ApiResponse<MedicationSchedule> = await res.json();
-    if (!res.ok || !payload.success) {
-      throw new Error(payload.message || "Could not record medication.");
-    }
-    return payload.data;
+    return handleResponse<MedicationSchedule>(res);
   },
 
   async submitCheckIn(checkIn: CheckIn, token: string): Promise<CheckIn> {
@@ -79,22 +80,12 @@ export const api = {
       headers: authHeader(token),
       body: JSON.stringify(checkIn)
     });
-    const payload: ApiResponse<CheckIn> = await res.json();
-    if (!res.ok || !payload.success) {
-      throw new Error(payload.message || "Could not submit check-in.");
-    }
-    return payload.data;
+    return handleResponse<CheckIn>(res);
   },
 
   async getMemories(patientId: string, token: string): Promise<MemoryItem[]> {
-    const res = await fetch(`${API_BASE}/patients/${patientId}/memories`, {
-      headers: authHeader(token)
-    });
-    const payload: ApiResponse<MemoryItem[]> = await res.json();
-    if (!res.ok || !payload.success) {
-      throw new Error(payload.message || "Could not load memories.");
-    }
-    return payload.data;
+    const res = await fetch(`${API_BASE}/patients/${patientId}/memories`, { headers: authHeader(token) });
+    return handleResponse<MemoryItem[]>(res);
   },
 
   async sendCompanionMessage(req: CompanionRequest, token: string): Promise<CompanionResponse> {
@@ -103,22 +94,12 @@ export const api = {
       headers: authHeader(token),
       body: JSON.stringify(req)
     });
-    const payload: ApiResponse<CompanionResponse> = await res.json();
-    if (!res.ok || !payload.success) {
-      throw new Error(payload.message || "Companion is temporarily resting.");
-    }
-    return payload.data;
+    return handleResponse<CompanionResponse>(res);
   },
 
   async getSettings(patientId: string, token: string): Promise<PatientSettings> {
-    const res = await fetch(`${API_BASE}/patients/${patientId}/settings`, {
-      headers: authHeader(token)
-    });
-    const payload: ApiResponse<PatientSettings> = await res.json();
-    if (!res.ok || !payload.success) {
-      throw new Error(payload.message || "Could not load settings.");
-    }
-    return payload.data;
+    const res = await fetch(`${API_BASE}/patients/${patientId}/settings`, { headers: authHeader(token) });
+    return handleResponse<PatientSettings>(res);
   },
 
   async updateSettings(patientId: string, settings: Partial<PatientSettings>, token: string): Promise<PatientSettings> {
@@ -127,11 +108,7 @@ export const api = {
       headers: authHeader(token),
       body: JSON.stringify(settings)
     });
-    const payload: ApiResponse<PatientSettings> = await res.json();
-    if (!res.ok || !payload.success) {
-      throw new Error(payload.message || "Could not update settings.");
-    }
-    return payload.data;
+    return handleResponse<PatientSettings>(res);
   },
 
   async triggerEmergencyAction(patientId: string, actionType: "CALL_CAREGIVER" | "EMERGENCY_HELP", token: string): Promise<{ message: string; contactTarget: string }> {
@@ -140,10 +117,83 @@ export const api = {
       headers: authHeader(token),
       body: JSON.stringify({ patientId, actionType, details: "Patient triggered from UI" })
     });
-    const payload: ApiResponse<{ message: string; contactTarget: string }> = await res.json();
-    if (!res.ok || !payload.success) {
-      throw new Error(payload.message || "Could not contact support.");
-    }
-    return payload.data;
+    return handleResponse<{ message: string; contactTarget: string }>(res);
+  },
+
+  /* ── Caregiver (P2) ── */
+  async getCaregiverDashboard(token: string): Promise<CaregiverPatientSummary[]> {
+    const res = await fetch(`${API_BASE}/caregiver/dashboard`, { headers: authHeader(token) });
+    return handleResponse<CaregiverPatientSummary[]>(res);
+  },
+
+  async getPatientSummary(patientId: string, token: string): Promise<CaregiverPatientSummary> {
+    const res = await fetch(`${API_BASE}/caregiver/patients/${patientId}/summary`, { headers: authHeader(token) });
+    return handleResponse<CaregiverPatientSummary>(res);
+  },
+
+  async getCaregiverRoutines(patientId: string, token: string): Promise<RoutineTask[]> {
+    const res = await fetch(`${API_BASE}/caregiver/patients/${patientId}/routines`, { headers: authHeader(token) });
+    return handleResponse<RoutineTask[]>(res);
+  },
+
+  async addRoutine(patientId: string, req: CreateRoutineRequest, token: string): Promise<RoutineTask> {
+    const res = await fetch(`${API_BASE}/caregiver/patients/${patientId}/routines`, {
+      method: "POST",
+      headers: authHeader(token),
+      body: JSON.stringify(req)
+    });
+    return handleResponse<RoutineTask>(res);
+  },
+
+  async getCaregiverMedications(patientId: string, token: string): Promise<MedicationSchedule[]> {
+    const res = await fetch(`${API_BASE}/caregiver/patients/${patientId}/medications`, { headers: authHeader(token) });
+    return handleResponse<MedicationSchedule[]>(res);
+  },
+
+  async addMedication(patientId: string, req: CreateMedicationRequest, token: string): Promise<MedicationSchedule> {
+    const res = await fetch(`${API_BASE}/caregiver/patients/${patientId}/medications`, {
+      method: "POST",
+      headers: authHeader(token),
+      body: JSON.stringify(req)
+    });
+    return handleResponse<MedicationSchedule>(res);
+  },
+
+  async getTimeline(patientId: string, token: string): Promise<TimelineEvent[]> {
+    const res = await fetch(`${API_BASE}/caregiver/patients/${patientId}/timeline`, { headers: authHeader(token) });
+    return handleResponse<TimelineEvent[]>(res);
+  },
+
+  async getAlerts(patientId: string, token: string): Promise<Alert[]> {
+    const res = await fetch(`${API_BASE}/caregiver/patients/${patientId}/alerts`, { headers: authHeader(token) });
+    return handleResponse<Alert[]>(res);
+  },
+
+  async acknowledgeAlert(alertId: string, req: AcknowledgeAlertRequest, token: string): Promise<Alert> {
+    const res = await fetch(`${API_BASE}/caregiver/alerts/${alertId}/acknowledge`, {
+      method: "POST",
+      headers: authHeader(token),
+      body: JSON.stringify(req)
+    });
+    return handleResponse<Alert>(res);
+  },
+
+  async getInsights(patientId: string, token: string): Promise<AIInsight[]> {
+    const res = await fetch(`${API_BASE}/caregiver/patients/${patientId}/insights`, { headers: authHeader(token) });
+    return handleResponse<AIInsight[]>(res);
+  },
+
+  async getCaregiverNotes(patientId: string, token: string): Promise<CaregiverNote[]> {
+    const res = await fetch(`${API_BASE}/caregiver/patients/${patientId}/notes`, { headers: authHeader(token) });
+    return handleResponse<CaregiverNote[]>(res);
+  },
+
+  async addNote(patientId: string, req: CreateNoteRequest, token: string): Promise<CaregiverNote> {
+    const res = await fetch(`${API_BASE}/caregiver/patients/${patientId}/notes`, {
+      method: "POST",
+      headers: authHeader(token),
+      body: JSON.stringify(req)
+    });
+    return handleResponse<CaregiverNote>(res);
   }
 };
