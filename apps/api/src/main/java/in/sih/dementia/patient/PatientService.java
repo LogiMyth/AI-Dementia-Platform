@@ -2,6 +2,7 @@ package in.sih.dementia.patient;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import in.sih.dementia.caregiver.CaregiverInsightService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,7 @@ public class PatientService {
     private final MedicationEventRepository medicationEventRepo;
     private final CheckInRepository checkInRepo;
     private final MemoryItemRepository memoryRepo;
+    private final CaregiverInsightService insightService;
     private final ObjectMapper objectMapper;
 
     public PatientService(PatientProfileRepository profileRepo,
@@ -23,6 +25,7 @@ public class PatientService {
                           MedicationEventRepository medicationEventRepo,
                           CheckInRepository checkInRepo,
                           MemoryItemRepository memoryRepo,
+                          CaregiverInsightService insightService,
                           ObjectMapper objectMapper) {
         this.profileRepo = profileRepo;
         this.routineRepo = routineRepo;
@@ -30,6 +33,7 @@ public class PatientService {
         this.medicationEventRepo = medicationEventRepo;
         this.checkInRepo = checkInRepo;
         this.memoryRepo = memoryRepo;
+        this.insightService = insightService;
         this.objectMapper = objectMapper;
     }
 
@@ -133,6 +137,7 @@ public class PatientService {
 
         var event = new MedicationEvent(UUID.randomUUID(), scheduleId, med.getPatientId(), action.toUpperCase(), note);
         medicationEventRepo.save(event);
+        insightService.analyze(med.getPatientId());
         return med;
     }
 
@@ -147,7 +152,9 @@ public class PatientService {
                 req.orientationResponse(),
                 req.helpRequested()
         );
-        return checkInRepo.save(checkIn);
+        var saved = checkInRepo.save(checkIn);
+        insightService.analyze(profile.getId());
+        return saved;
     }
 
     @Transactional(readOnly = true)

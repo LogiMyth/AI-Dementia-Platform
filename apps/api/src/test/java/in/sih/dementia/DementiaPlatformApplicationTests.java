@@ -246,4 +246,43 @@ class DementiaPlatformApplicationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(greaterThanOrEqualTo(1))));
     }
+
+    @Test
+    void testDeterministicInsightFlow() throws Exception {
+        var patientLogin = mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(
+                        new AuthController.LoginRequest("patient.b@example.test", "DemoPass123!"))))
+                .andReturn();
+        var patientJson = objectMapper.readTree(patientLogin.getResponse().getContentAsString());
+        var patientToken = patientJson.get("data").get("accessToken").asText();
+        var patientUserId = patientJson.get("data").get("user").get("id").asText();
+        var today = mockMvc.perform(get("/patients/" + patientUserId + "/today")
+                .header("Authorization", "Bearer " + patientToken)).andReturn();
+        var todayJson = objectMapper.readTree(today.getResponse().getContentAsString()).get("data");
+        var patientId = todayJson.get("patientId").asText();
+        var medicationId = todayJson.get("medications").get(0).get("id").asText();
+
+        mockMvc.perform(post("/patients/" + patientId + "/medications/" + medicationId + "/action")
+                .header("Authorization", "Bearer " + patientToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new PatientService.MedicationActionRequest("HELP", "Please assist"))))
+                .andExpect(status().isOk());
+
+        var caregiverLogin = mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(
+                        new AuthController.LoginRequest("caregiver.asha@example.test", "DemoPass123!"))))
+                .andReturn();
+        var caregiverToken = objectMapper.readTree(caregiverLogin.getResponse().getContentAsString())
+                .get("data").get("accessToken").asText();
+        mockMvc.perform(get("/caregiver/patients/" + patientId + "/insights")
+                .header("Authorization", "Bearer " + caregiverToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].provider", is("deterministic-rules")))
+                .andExpect(jsonPath("$.data[0].riskLevel", is("HIGH")))
+                .andExpect(jsonPath("$.data[0].summary", containsString("observation")))
+                .andExpect(jsonPath("$.data[0].contributingSignals", hasSize(greaterThanOrEqualTo(1))))
+                .andExpect(jsonPath("$.data[0].recommendedAction", containsString("Consider checking")));
+    }
 }

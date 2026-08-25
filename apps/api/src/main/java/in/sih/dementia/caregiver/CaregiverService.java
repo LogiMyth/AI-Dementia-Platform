@@ -74,6 +74,17 @@ public class CaregiverService {
             String severity
     ) {}
 
+    public record AIInsightDto(
+            UUID id,
+            UUID patientId,
+            String summary,
+            String riskLevel,
+            List<String> contributingSignals,
+            String recommendedAction,
+            String provider,
+            Instant createdAt
+    ) {}
+
     public record AcknowledgeAlertRequest(
             String status,
             String note
@@ -197,8 +208,13 @@ public class CaregiverService {
     }
 
     @Transactional(readOnly = true)
-    public List<AIInsight> getInsights(UUID patientId) {
-        return insightRepo.findByPatientIdOrderByCreatedAtDesc(resolveProfile(patientId).getId());
+    public List<AIInsightDto> getInsights(UUID patientId) {
+        return insightRepo.findByPatientIdOrderByCreatedAtDesc(resolveProfile(patientId).getId()).stream()
+                .map(insight -> new AIInsightDto(
+                        insight.getId(), insight.getPatientId(), insight.getSummary(), insight.getRiskLevel(),
+                        parseSignals(insight.getContributingSignals()), insight.getRecommendedAction(),
+                        insight.getProvider(), insight.getCreatedAt()))
+                .toList();
     }
 
     @Transactional(readOnly = true)

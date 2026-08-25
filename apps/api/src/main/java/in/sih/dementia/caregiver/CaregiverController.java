@@ -93,7 +93,7 @@ public class CaregiverController {
 
     /** AI insights for a patient */
     @GetMapping("/patients/{patientId}/insights")
-    public ResponseEntity<ApiResponse<List<AIInsight>>> getInsights(@PathVariable UUID patientId) {
+    public ResponseEntity<ApiResponse<List<CaregiverService.AIInsightDto>>> getInsights(@PathVariable UUID patientId) {
         return ResponseEntity.ok(new ApiResponse<>(true, caregiverService.getInsights(patientId), "Insights retrieved."));
     }
 
