@@ -27,6 +27,7 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
   const [helpRequested, setHelpRequested] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
   const [submitted, setSubmitted] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleNext = () => {
     if (step < 4) {
@@ -42,6 +43,7 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
 
   const handleSubmit = async () => {
     setBusy(true);
+    setError(null);
     try {
       const checkInPayload: CheckIn = {
         patientId,
@@ -55,7 +57,7 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
       setSubmitted(true);
       speakText(`Thank you ${patientName}. Your daily check-in is saved. You are doing wonderfully today.`, voiceEnabled);
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : "We could not save your check-in. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -243,6 +245,7 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
           </button>
         )}
       </div>
+      {error && <p className="form-error" role="alert">{error}</p>}
     </section>
   );
 };

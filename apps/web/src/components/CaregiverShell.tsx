@@ -39,7 +39,7 @@ export function CaregiverShell({ user, token, onLogout }: Props) {
       <header className="caregiver-topbar">
         <div className="topbar-left">
           {selectedPatient && tab !== "dashboard" && (
-            <button className="btn-back-sm" onClick={tab === "overview" ? backToDashboard : backToOverview}>
+            <button type="button" className="btn-back-sm" onClick={tab === "overview" ? backToDashboard : backToOverview} aria-label="Go back">
               ←
             </button>
           )}
@@ -50,7 +50,7 @@ export function CaregiverShell({ user, token, onLogout }: Props) {
         </div>
         <div className="topbar-right">
           <span className="topbar-user">{user.displayName}</span>
-          <button className="btn-logout" onClick={onLogout}>Sign Out</button>
+          <button type="button" className="btn-logout" onClick={onLogout}>Sign Out</button>
         </div>
       </header>
 
@@ -121,7 +121,7 @@ export function CaregiverShell({ user, token, onLogout }: Props) {
 
       {/* Bottom nav (only when patient selected) */}
       {selectedPatient && (
-        <nav className="caregiver-bottom-nav">
+        <nav className="caregiver-bottom-nav" aria-label="Caregiver patient navigation">
           {([
             { key: "overview", icon: "🏠", label: "Overview" },
             { key: "timeline", icon: "📋", label: "Activity" },
@@ -132,8 +132,10 @@ export function CaregiverShell({ user, token, onLogout }: Props) {
           ] as const).map(({ key, icon, label }) => (
             <button
               key={key}
+              type="button"
               className={`caregiver-nav-btn ${tab === key ? "active" : ""}`}
               onClick={() => setTab(key)}
+              aria-current={tab === key ? "page" : undefined}
             >
               <span className="nav-icon">{icon}</span>
               <span className="nav-label">{label}</span>

@@ -18,6 +18,7 @@ function PatientShell({ session, onSignOut }: { session: LoginResponse; onSignOu
   const [summary, setSummary] = useState<PatientTodaySummary | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
   const [showEmergencyModal, setShowEmergencyModal] = useState<boolean>(false);
   const [largeText, setLargeText] = useState<boolean>(true);
   const [highContrast, setHighContrast] = useState<boolean>(false);
@@ -46,14 +47,24 @@ function PatientShell({ session, onSignOut }: { session: LoginResponse; onSignOu
 
   const handleQuickCompleteRoutine = async (taskId: string) => {
     if (!summary) return;
-    await api.updateRoutineStatus(summary.patientId, taskId, "COMPLETED", session.accessToken);
-    await loadData();
+    try {
+      await api.updateRoutineStatus(summary.patientId, taskId, "COMPLETED", session.accessToken);
+      await loadData();
+      setFeedback("Well done — your activity is marked complete.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "We could not save that activity. Please try again.");
+    }
   };
 
   const handleQuickTakeMedication = async (scheduleId: string) => {
     if (!summary) return;
-    await api.recordMedicationAction(summary.patientId, scheduleId, "TAKEN", "Marked taken from Today overview", session.accessToken);
-    await loadData();
+    try {
+      await api.recordMedicationAction(summary.patientId, scheduleId, "TAKEN", "Marked taken from Today overview", session.accessToken);
+      await loadData();
+      setFeedback("Thank you — your medicine is marked taken.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "We could not save that medicine update. Please try again.");
+    }
   };
 
   const handleSettingsSaved = (settings: PatientSettings) => {
@@ -105,6 +116,12 @@ function PatientShell({ session, onSignOut }: { session: LoginResponse; onSignOu
             <button type="button" className="btn-primary-large" onClick={loadData}>
               Try Again
             </button>
+          </div>
+        )}
+
+        {feedback && !loading && (
+          <div className="alert-banner-success" role="status">
+            <p>{feedback}</p>
           </div>
         )}
 

@@ -24,12 +24,19 @@ export function AIInsightsView({ patientId, token, onBack }: Props) {
   const [insights, setInsights] = useState<AIInsight[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadInsights = () => {
+    setLoading(true);
+    setError(null);
     api.getInsights(patientId, token)
       .then(setInsights)
-      .catch(console.error)
+      .catch((e: Error) => setError(e.message || "We could not load insights. Please try again."))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadInsights();
   }, [patientId, token]);
 
   if (loading) return <div className="loading-inline"><div className="loading-spinner-sm" /> Loading insights...</div>;
@@ -45,7 +52,9 @@ export function AIInsightsView({ patientId, token, onBack }: Props) {
         ℹ️ These insights are generated from structured activity data. They are informational only and do not constitute medical advice.
       </p>
 
-      {insights.length === 0 ? (
+      {error && <div className="error-card" role="alert"><p>{error}</p><button type="button" className="btn btn-primary" onClick={loadInsights}>Retry</button></div>}
+
+      {!error && insights.length === 0 ? (
         <div className="empty-state">
           <p>No insights generated yet. Check back after patient activity is recorded.</p>
         </div>
@@ -53,7 +62,12 @@ export function AIInsightsView({ patientId, token, onBack }: Props) {
         <div className="insights-list">
           {insights.map(insight => (
             <div key={insight.id} className={`insight-card ${riskClass[insight.riskLevel] ?? ""}`}>
-              <div className="insight-card-header" onClick={() => setExpanded(e => e === insight.id ? null : insight.id)}>
+              <button
+                type="button"
+                className="insight-card-header"
+                onClick={() => setExpanded(e => e === insight.id ? null : insight.id)}
+                aria-expanded={expanded === insight.id}
+              >
                 <div className="insight-risk-badge">
                   {riskIcon[insight.riskLevel]} {insight.riskLevel} Risk
                 </div>
@@ -65,7 +79,7 @@ export function AIInsightsView({ patientId, token, onBack }: Props) {
                   })}
                 </div>
                 <span className="expand-icon">{expanded === insight.id ? "▲" : "▼"}</span>
-              </div>
+              </button>
 
               {expanded === insight.id && (
                 <div className="insight-details">

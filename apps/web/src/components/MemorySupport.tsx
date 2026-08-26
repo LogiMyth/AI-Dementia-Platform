@@ -17,6 +17,7 @@ export const MemorySupport: React.FC<MemorySupportProps> = ({
   const [memories, setMemories] = useState<MemoryItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeMemory, setActiveMemory] = useState<MemoryItem | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -27,7 +28,9 @@ export const MemorySupport: React.FC<MemorySupportProps> = ({
           if (data.length > 0) setActiveMemory(data[0]);
         }
       })
-      .catch((err) => console.error(err))
+      .catch((err: Error) => {
+        if (active) setError(err.message || "We could not load your memories. Please try again later.");
+      })
       .finally(() => {
         if (active) setLoading(false);
       });
@@ -47,13 +50,15 @@ export const MemorySupport: React.FC<MemorySupportProps> = ({
 
       {loading && <p className="loading-state">Loading your favorite memories…</p>}
 
-      {!loading && memories.length === 0 && (
+      {!loading && error && <div className="alert-banner-error" role="alert">{error}</div>}
+
+      {!loading && !error && memories.length === 0 && (
         <div className="card-soft">
           <p>Your caregiver will add memory cards for you soon.</p>
         </div>
       )}
 
-      {!loading && memories.length > 0 && (
+      {!loading && !error && memories.length > 0 && (
         <>
           {/* Active Featured Memory Card */}
           {activeMemory && (
